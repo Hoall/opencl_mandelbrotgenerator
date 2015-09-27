@@ -1,4 +1,3 @@
-#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 //###############################################
 //
 // my_complex functions
@@ -6,15 +5,15 @@
 //###############################################
 
 typedef struct komplex {
-	double real;
-	double imaginary;
+	float real;
+	float imaginary;
 } my_complex_t;
 
-double delta(const double min, const double max, const long size);
+float delta(const float min, const float max, const long size);
 my_complex_t add_complex(my_complex_t a, my_complex_t b);
 my_complex_t sub_complex(my_complex_t a, my_complex_t b);
 my_complex_t mul_complex(my_complex_t a, my_complex_t b);
-double sum_complex(my_complex_t a);
+float sum_complex(my_complex_t a);
 
 /**
  * Calculates the distance (delta) for a certain number of uniformly
@@ -25,10 +24,10 @@ double sum_complex(my_complex_t a);
  * @param size Number of Points.
  * @return Distance between the points on the line
  */
-double delta(const double min, const double max, const long size) {
-	double result = -1;
+float delta(const float min, const float max, const long size) {
+	float result = -1;
 
-	result = (max - min) / (double) (size - 1);
+	result = (max - min) / (float) (size - 1);
 
 	return result;
 }
@@ -93,10 +92,10 @@ my_complex_t mul_complex(const my_complex_t a, const my_complex_t b) {
  * @param a Number whose amount is to be determined.
  * @return Absolute value of the complex number.
  */
-double sum_complex(const my_complex_t a) {
-	double result = -1;
+float sum_complex(const my_complex_t a) {
+	float result = -1;
 
-	result = sqrt(pow(a.real, 2) + pow(a.imaginary, 2));
+	result = sqrt(pow((float)a.real, 2) + pow((float)a.imaginary, 2));
 
 	return result;
 }
@@ -108,10 +107,10 @@ double sum_complex(const my_complex_t a) {
 //###############################################
 
 my_complex_t calculate_dot(const my_complex_t z, const my_complex_t c);
-long iterate_dot(const my_complex_t c, const double abort_value,
+long iterate_dot(const my_complex_t c, const float abort_value,
 		const long itr);
-__kernel void calculate_imagerowdots_iterations(const double x_min, const double x_max,
-		const double y_value, const long x_mon, const double abort_value, const long itr,
+__kernel void calculate_imagerowdots_iterations(const float x_min, const float x_max,
+		const float y_value, const long x_mon, const float abort_value, const long itr,
 		__global long * imagerow);
 
 /**
@@ -146,9 +145,9 @@ my_complex_t calculate_dot(const my_complex_t z, const my_complex_t c) {
  * @param itr The number of required iterations.
  * @return The number of iterations for that point.
  */
-long iterate_dot(const my_complex_t c, const double abort_value,
+long iterate_dot(const my_complex_t c, const float abort_value,
 		const long itr) {
-	double sum = -1;
+	float sum = -1;
 
 	//define z
 	my_complex_t z;
@@ -191,10 +190,10 @@ long iterate_dot(const my_complex_t c, const double abort_value,
  * @param itr The number of required iterations.
  * @param image The image as a set of iteration values.
  */
-__kernel void calculate_imagerowdots_iterations(const double x_min, const double x_max,
-		const double y_value, const long x_mon, const double abort_value, const long itr,
+__kernel void calculate_imagerowdots_iterations(const float x_min, const float x_max,
+		const float y_value, const long x_mon, const float abort_value, const long itr,
 		__global long * imagerow) {
-	double delta_x = delta(x_min, x_max, x_mon);
+	float delta_x = delta(x_min, x_max, x_mon);
 	int j = get_global_id(0);	//the position in the row
 
 	//set to top left corner
@@ -204,6 +203,6 @@ __kernel void calculate_imagerowdots_iterations(const double x_min, const double
 
 	//for each dot in the column
 	j = get_global_id(0);
-	*(imagerow + j) = iterate_dot(c, abort_value, itr);
+	imagerow[j] = iterate_dot(c, abort_value, itr);
 
 }

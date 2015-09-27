@@ -47,10 +47,12 @@ int main(void) {
 	//###############################################
 
 	//plane section values
-	double x_ebene_min = -1;
-	double y_ebene_min = -1;
-	double x_ebene_max = 2;
-	double y_ebene_max = 1;
+	float x_ebene_min = -1;
+	float y_ebene_min = -1;
+	float x_ebene_max = 2;
+	float y_ebene_max = 1;
+
+	float y_ebene_mitte = 1;
 
 	//monitor resolution values
 	const long x_mon = 640;
@@ -60,7 +62,7 @@ int main(void) {
 	long itr = 100;
 
 	//abort condition
-	double abort_value = 2;
+	float abort_value = 2;
 
 	//Get memory for row
 	long* h_image_row = (long*) calloc(x_mon, sizeof(long));       // a vector
@@ -191,23 +193,23 @@ int main(void) {
 
 	// Set the arguments to our compute kernel
 	err = clSetKernelArg(ko_calculate_imagerowdots_iterations, 0,
-			sizeof(double), &x_ebene_min);
+			sizeof(float), &x_ebene_min);
 	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 1,
-			sizeof(double), &x_ebene_max);
+			sizeof(float), &x_ebene_max);
 	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 2,
-			sizeof(double), &y_ebene_min);
+			sizeof(float), &y_ebene_mitte);
 	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 3, sizeof(long),
 			&x_mon);
 	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 4,
-			sizeof(double), &abort_value);
+			sizeof(float), &abort_value);
 	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 5, sizeof(long),
 			&itr);
 	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 6,
 			sizeof(cl_mem), &d_a);
 	checkError(err, "Setting kernel arguments");
 
-	/*__kernel void calculate_imagerowdots_iterations(const double x_min, const double x_max,
-	 const double y_value, const long x_mon, const double abort_value, const long itr,
+	/*__kernel void calculate_imagerowdots_iterations(const float x_min, const float x_max,
+	 const float y_value, const long x_mon, const float abort_value, const long itr,
 	 __global long * imagerow)*/
 
 	// Execute the kernel over the entire range of our 1d input data set

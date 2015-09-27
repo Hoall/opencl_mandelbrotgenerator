@@ -22,20 +22,6 @@
 
 #define LENGTH 1000
 
-// Kernel
-
-const char *KernelSource =
-		"\n"
-				"__kernel void multi(                                                 \n"
-				"   __global float* a,                                                  \n"
-				"   const unsigned int count)                                           \n"
-				"{                                                                      \n"
-				"   int i = get_global_id(0);                                           \n"
-				"   if(i < count)                                                       \n"
-				"       a[i] = a[i] * 2;                                                \n"
-				"}                                                                      \n"
-				"\n";
-
 int main(void) {
 	int err;               // error code returned from OpenCL calls
 
@@ -98,9 +84,29 @@ int main(void) {
 	commands = clCreateCommandQueue(context, device_id, 0, &err);
 	checkError(err, "Creating command queue");
 
+	//Read Kernel source
+	FILE *fp;
+	char *source_str;
+	size_t source_size, program_size;
+
+	fp = fopen("./kernel/kernel.cl", "r");
+	if (!fp) {
+		printf("Failed to load kernel\n");
+		return 1;
+	}
+
+	fseek(fp, 0, SEEK_END);
+	program_size = ftell(fp);
+	rewind(fp);
+	source_str = (char*) malloc(program_size + 1);
+	source_str[program_size] = '\0';
+	fread(source_str, sizeof(char), program_size, fp);
+	fclose(fp);
+
 	// Create the compute program from the source buffer
-	program = clCreateProgramWithSource(context, 1,
-			(const char **) &KernelSource, NULL, &err);
+	program = clCreateProgramWithSource(context, 1, (const char **) &source_str,
+	NULL, &err);
+
 	checkError(err, "Creating program");
 
 	// Build the program
@@ -122,7 +128,7 @@ int main(void) {
 	checkError(err, "Creating kernel");
 
 	d_a = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * count,
-			NULL, &err);
+	NULL, &err);
 	checkError(err, "Creating buffer d_a");
 
 	// Write a vector into compute device memory

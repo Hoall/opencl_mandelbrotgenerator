@@ -98,9 +98,10 @@ int main(void) {
 	commands = clCreateCommandQueue(context, device_id, 0, &err);
 	checkError(err, "Creating command queue");
 
-    // Create the compute program from the source buffer
-    program = clCreateProgramWithSource(context, 1, (const char **) & KernelSource, NULL, &err);
-    checkError(err, "Creating program");
+	// Create the compute program from the source buffer
+	program = clCreateProgramWithSource(context, 1,
+			(const char **) &KernelSource, NULL, &err);
+	checkError(err, "Creating program");
 
 	// Build the program
 	err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
@@ -120,8 +121,8 @@ int main(void) {
 	ko_multi = clCreateKernel(program, "multi", &err);
 	checkError(err, "Creating kernel");
 
-	d_a = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * count, NULL,
-			&err);
+	d_a = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * count,
+			NULL, &err);
 	checkError(err, "Creating buffer d_a");
 
 	// Write a vector into compute device memory
@@ -153,19 +154,18 @@ int main(void) {
 		exit(1);
 	}
 
-    for(i = 0; i < count; i++)
-    {
-    	printf("%d %f\n", i, h_a[i]);
-    }
+	for (i = 0; i < count; i++) {
+		printf("%d %f\n", i, h_a[i]);
+	}
 
-    // cleanup then shutdown
-    clReleaseMemObject(d_a);
-    clReleaseProgram(program);
-    clReleaseKernel(ko_multi);
-    clReleaseCommandQueue(commands);
-    clReleaseContext(context);
+	// cleanup then shutdown
+	clReleaseMemObject(d_a);
+	clReleaseProgram(program);
+	clReleaseKernel(ko_multi);
+	clReleaseCommandQueue(commands);
+	clReleaseContext(context);
 
-    free(h_a);
+	free(h_a);
 
 	return 0;
 }

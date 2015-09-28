@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -19,6 +20,7 @@
 #endif
 
 #include "../resources/error_code.h"
+#include "../resources/my_complex.h"
 
 int main(void) {
 	//###############################################
@@ -52,8 +54,6 @@ int main(void) {
 	float x_ebene_max = 2;
 	float y_ebene_max = 1;
 
-	float y_ebene_mitte = 1;
-
 	//monitor resolution values
 	const long x_mon = 640;
 	const long y_mon = 480;
@@ -64,8 +64,8 @@ int main(void) {
 	//abort condition
 	float abort_value = 2;
 
-	//Get memory for row
-	long* h_image_row = (long*) calloc(x_mon, sizeof(long));       // a vector
+	//Get memory for image
+	long* h_image = (long*) calloc(x_mon * y_mon, sizeof(long));
 
 	//###############################################
 	//
@@ -176,69 +176,87 @@ int main(void) {
 			"calculate_imagerowdots_iterations", &err);
 	checkError(err, "Creating kernel");
 
-	//###############################################
-	//
-	// Create and write buffer
-	//
-	//###############################################
+	float y_value = y_ebene_max;
+	float delta_y = delta(y_ebene_min, y_ebene_max, y_mon);
 
-	d_a = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(long) * x_mon,
-	NULL, &err);
-	checkError(err, "Creating buffer d_a");
+	for (int row = 0; row < y_mon; ++row) {
+		//###############################################
+		//
+		// Create and write buffer
+		//
+		//###############################################
 
-	// Write a vector into compute device memory
-	err = clEnqueueWriteBuffer(commands, d_a, CL_TRUE, 0, sizeof(long) * x_mon,
-			h_image_row, 0, NULL, NULL);
-	checkError(err, "Copying h_a to device at d_a");
+		//Get memory for row
+		long* h_image_row = (long*) calloc(x_mon, sizeof(long));     // a vector
 
-	//###############################################
-	//
-	// Set the arguments to our compute kernel
-	//
-	//###############################################
+		d_a = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(long) * x_mon,
+		NULL, &err);
+		checkError(err, "Creating buffer d_a");
 
-	err = clSetKernelArg(ko_calculate_imagerowdots_iterations, 0, sizeof(float),
-			&x_ebene_min);
-	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 1,
-			sizeof(float), &x_ebene_max);
-	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 2,
-			sizeof(float), &y_ebene_mitte);
-	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 3, sizeof(long),
-			&x_mon);
-	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 4,
-			sizeof(float), &abort_value);
-	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 5, sizeof(long),
-			&itr);
-	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 6,
-			sizeof(cl_mem), &d_a);
-	checkError(err, "Setting kernel arguments");
+		// Write a vector into compute device memory
+		err = clEnqueueWriteBuffer(commands, d_a, CL_TRUE, 0,
+				sizeof(long) * x_mon, h_image_row, 0, NULL, NULL);
+		checkError(err, "Copying h_a to device at d_a");
 
-	/*__kernel void calculate_imagerowdots_iterations(const float x_min, const float x_max,
-	 const float y_value, const long x_mon, const float abort_value, const long itr,
-	 __global long * imagerow)*/
+		//###############################################
+		//
+		// Set the arguments to our compute kernel
+		//
+		//###############################################
 
-	// Execute the kernel over the entire range of our 1d input data set
-	// letting the OpenCL runtime choose the work-group size
-	global = x_mon;
-	err = clEnqueueNDRangeKernel(commands, ko_calculate_imagerowdots_iterations,
-			1, NULL, &global, NULL, 0,
-			NULL, NULL);
-	checkError(err, "Enqueueing kernel");
+		err = clSetKernelArg(ko_calculate_imagerowdots_iterations, 0,
+				sizeof(float), &x_ebene_min);
+		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 1,
+				sizeof(float), &x_ebene_max);
+		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 2,
+				sizeof(float), &y_value);
+		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 3,
+				sizeof(long), &x_mon);
+		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 4,
+				sizeof(float), &abort_value);
+		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 5,
+				sizeof(long), &itr);
+		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 6,
+				sizeof(cl_mem), &d_a);
+		checkError(err, "Setting kernel arguments");
 
-	// Wait for the commands to complete
-	err = clFinish(commands);
-	checkError(err, "Waiting for kernel to finish");
+		/*__kernel void calculate_imagerowdots_iterations(const float x_min, const float x_max,
+		 const float y_value, const long x_mon, const float abort_value, const long itr,
+		 __global long * imagerow)*/
 
-	// Read back the results from the compute device
-	err = clEnqueueReadBuffer(commands, d_a, CL_TRUE, 0, sizeof(long) * x_mon,
-			h_image_row, 0, NULL, NULL);
-	if (err != CL_SUCCESS) {
-		printf("Error: Failed to read output array!\n%s\n", err_code(err));
-		exit(1);
-	}
+		// Execute the kernel over the entire range of our 1d input data set
+		// letting the OpenCL runtime choose the work-group size
+		global = x_mon;
+		err = clEnqueueNDRangeKernel(commands,
+				ko_calculate_imagerowdots_iterations, 1, NULL, &global, NULL, 0,
+				NULL, NULL);
+		checkError(err, "Enqueueing kernel");
 
-	for (i = 0; i < x_mon; ++i) {
-		printf("%d %ld\n", i, h_image_row[i]);
+		// Wait for the commands to complete
+		err = clFinish(commands);
+		checkError(err, "Waiting for kernel to finish");
+
+		// Read back the results from the compute device
+		err = clEnqueueReadBuffer(commands, d_a, CL_TRUE, 0,
+				sizeof(long) * x_mon, h_image_row, 0, NULL, NULL);
+		if (err != CL_SUCCESS) {
+			printf("Error: Failed to read output array!\n%s\n", err_code(err));
+			exit(1);
+		}
+
+		printf("\n\n%d\n",row);
+		for (i = 0; i < x_mon; ++i) {
+			printf("%ld ", h_image_row[i]);
+		}
+
+
+		//reduce y
+		y_value -= delta_y;
+
+		//cope row to image
+		memcpy(h_image + row * x_mon, h_image_row, sizeof(long) * x_mon);
+
+		free(h_image_row);
 	}
 
 	//###############################################
@@ -253,7 +271,7 @@ int main(void) {
 	clReleaseCommandQueue(commands);
 	clReleaseContext(context);
 
-	free(h_image_row);
+	free(h_image);
 
 	return 0;
 }

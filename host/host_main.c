@@ -21,6 +21,7 @@
 
 #include "../resources/error_code.h"
 #include "../resources/my_complex.h"
+#include "../resources/mybmpwriter.h"
 
 int main(void) {
 	//###############################################
@@ -376,6 +377,12 @@ int main(void) {
 	clReleaseContext(context);
 
 	free(h_image);
+
+	// save the image
+	char filename[50];
+	sprintf(filename, "img-%d.bmp", 0);
+
+	safe_image_to_bmp(x_mon, y_mon, h_image_pixel, filename);
 
 	free(h_image_pixel);
 

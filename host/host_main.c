@@ -371,6 +371,7 @@ int main(void) {
 	//###############################################
 
 	clReleaseMemObject(d_a);
+	clReleaseMemObject(d_b);
 	clReleaseProgram(program);
 	clReleaseKernel(ko_calculate_imagerowdots_iterations);
 	clReleaseCommandQueue(commands);

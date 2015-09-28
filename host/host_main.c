@@ -121,7 +121,7 @@ int main(void) {
 	char *source_str;
 	size_t source_size, program_size;
 
-	fp = fopen("./kernel/kernel.cl", "r");
+	fp = fopen("./kernel/calculate_iterations.cl", "r");
 	if (!fp) {
 		printf("Failed to load kernel\n");
 		return 1;

@@ -22,6 +22,7 @@
 #include "../resources/error_code.h"
 #include "../resources/my_complex.h"
 #include "../resources/mybmpwriter.h"
+#include "../resources/zoom.h"
 
 int main(void) {
 	//###############################################
@@ -67,9 +68,17 @@ int main(void) {
 	//abort condition
 	float abort_value = 2;
 
-	//Get memory for image
-	long* h_image = (long*) calloc(x_mon * y_mon, sizeof(long));
-	unsigned char* h_image_pixel = (unsigned char*) calloc(x_mon * y_mon * 3, sizeof(unsigned char));
+	//Number of images per second
+	long fps = 24;
+
+	//video duration in seconds
+	long video_duration = 3;
+
+	//zoom speed in percentage
+	float reduction = 5;
+
+	//zoom dot
+	my_complex_t zoom_dot;
 
 	//###############################################
 	//
@@ -181,186 +190,224 @@ int main(void) {
 	checkError(err, "Creating kernel");
 
 	// Create the compute kernel from the program
-	ko_calculate_colorrow = clCreateKernel(program,
-			"calculate_colorrow", &err);
+	ko_calculate_colorrow = clCreateKernel(program, "calculate_colorrow", &err);
 	checkError(err, "Creating kernel");
 
-	//###############################################
-	//###############################################
-	//
-	// Loop to calculate image dot iterations
-	//
-	//###############################################
-	//###############################################
-
-	float y_value = y_ebene_max;
-	float delta_y = delta(y_ebene_min, y_ebene_max, y_mon);
-
-	for (int row = 0; row < y_mon; ++row) {
-		//###############################################
-		//
-		// Create and write buffer
-		//
-		//###############################################
-
-		//Get memory for row
-		long* h_image_row = (long*) calloc(x_mon, sizeof(long));     // a vector
-
-		d_a = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(long) * x_mon,
-		NULL, &err);
-		checkError(err, "Creating buffer d_a");
-
-		// Write a vector into compute device memory
-		err = clEnqueueWriteBuffer(commands, d_a, CL_TRUE, 0,
-				sizeof(long) * x_mon, h_image_row, 0, NULL, NULL);
-		checkError(err, "Copying h_a to device at d_a");
+	int number_images = 0;
+	do {
+		//Get memory for image
+		long* h_image = (long*) calloc(x_mon * y_mon, sizeof(long));
+		unsigned char* h_image_pixel = (unsigned char*) calloc(
+				x_mon * y_mon * 3, sizeof(unsigned char));
 
 		//###############################################
+		//###############################################
 		//
-		// Set the arguments to our compute kernel
+		// Loop to calculate image dot iterations
 		//
 		//###############################################
+		//###############################################
 
-		err = clSetKernelArg(ko_calculate_imagerowdots_iterations, 0,
-				sizeof(float), &x_ebene_min);
-		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 1,
-				sizeof(float), &x_ebene_max);
-		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 2,
-				sizeof(float), &y_value);
-		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 3,
-				sizeof(long), &x_mon);
-		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 4,
-				sizeof(float), &abort_value);
-		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 5,
-				sizeof(long), &itr);
-		err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 6,
-				sizeof(cl_mem), &d_a);
-		checkError(err, "Setting kernel arguments");
+		float y_value = y_ebene_max;
+		float delta_y = delta(y_ebene_min, y_ebene_max, y_mon);
 
-		/*__kernel void calculate_imagerowdots_iterations(const float x_min, const float x_max,
-		 const float y_value, const long x_mon, const float abort_value, const long itr,
-		 __global long * imagerow)*/
+		for (int row = 0; row < y_mon; ++row) {
+			//###############################################
+			//
+			// Create and write buffer
+			//
+			//###############################################
 
-		// Execute the kernel over the entire range of our 1d input data set
-		// letting the OpenCL runtime choose the work-group size
-		global = x_mon;
-		err = clEnqueueNDRangeKernel(commands,
-				ko_calculate_imagerowdots_iterations, 1, NULL, &global, NULL, 0,
-				NULL, NULL);
-		checkError(err, "Enqueueing kernel");
+			//Get memory for row
+			long* h_image_row = (long*) calloc(x_mon, sizeof(long)); // a vector
 
-		// Wait for the commands to complete
-		err = clFinish(commands);
-		checkError(err, "Waiting for kernel to finish");
+			d_a = clCreateBuffer(context, CL_MEM_READ_WRITE,
+					sizeof(long) * x_mon,
+					NULL, &err);
+			checkError(err, "Creating buffer d_a");
 
-		// Read back the results from the compute device
-		err = clEnqueueReadBuffer(commands, d_a, CL_TRUE, 0,
-				sizeof(long) * x_mon, h_image_row, 0, NULL, NULL);
-		if (err != CL_SUCCESS) {
-			printf("Error: Failed to read output array!\n%s\n", err_code(err));
-			exit(1);
+			// Write a vector into compute device memory
+			err = clEnqueueWriteBuffer(commands, d_a, CL_TRUE, 0,
+					sizeof(long) * x_mon, h_image_row, 0, NULL, NULL);
+			checkError(err, "Copying h_a to device at d_a");
+
+			//###############################################
+			//
+			// Set the arguments to our compute kernel
+			//
+			//###############################################
+
+			err = clSetKernelArg(ko_calculate_imagerowdots_iterations, 0,
+					sizeof(float), &x_ebene_min);
+			err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 1,
+					sizeof(float), &x_ebene_max);
+			err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 2,
+					sizeof(float), &y_value);
+			err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 3,
+					sizeof(long), &x_mon);
+			err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 4,
+					sizeof(float), &abort_value);
+			err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 5,
+					sizeof(long), &itr);
+			err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 6,
+					sizeof(cl_mem), &d_a);
+			checkError(err, "Setting kernel arguments");
+
+			/*__kernel void calculate_imagerowdots_iterations(const float x_min, const float x_max,
+			 const float y_value, const long x_mon, const float abort_value, const long itr,
+			 __global long * imagerow)*/
+
+			// Execute the kernel over the entire range of our 1d input data set
+			// letting the OpenCL runtime choose the work-group size
+			global = x_mon;
+			err = clEnqueueNDRangeKernel(commands,
+					ko_calculate_imagerowdots_iterations, 1, NULL, &global,
+					NULL, 0,
+					NULL, NULL);
+			checkError(err, "Enqueueing kernel");
+
+			// Wait for the commands to complete
+			err = clFinish(commands);
+			checkError(err, "Waiting for kernel to finish");
+
+			// Read back the results from the compute device
+			err = clEnqueueReadBuffer(commands, d_a, CL_TRUE, 0,
+					sizeof(long) * x_mon, h_image_row, 0, NULL, NULL);
+			if (err != CL_SUCCESS) {
+				printf("Error: Failed to read output array!\n%s\n",
+						err_code(err));
+				exit(1);
+			}
+
+			//reduce y
+			y_value -= delta_y;
+
+			//cope row to image
+			memcpy(h_image + row * x_mon, h_image_row, sizeof(long) * x_mon);
+
+			free(h_image_row);
 		}
 
-		//reduce y
-		y_value -= delta_y;
-
-		//cope row to image
-		memcpy(h_image + row * x_mon, h_image_row, sizeof(long) * x_mon);
-
-		free(h_image_row);
-	}
-
-	for (i = 0; i < x_mon * y_mon; ++i) {
-		printf("%ld ", h_image[i]);
-	}
-	fflush(stdout);
-
-	//###############################################
-	//###############################################
-	//
-	// End of loop to calculate image dot iterations
-	//
-	//###############################################
-	//###############################################
-
-
-	//###############################################
-	//###############################################
-	//
-	// Beginn color calculation
-	//
-	//###############################################
-	//###############################################
-
-	for (int row = 0; row < y_mon; ++row) {
-		//Get memory for row
-		long* h_image_row = (long*) calloc(x_mon, sizeof(long));     // a vector
-		memcpy(h_image_row, h_image + row * x_mon, sizeof(long) * x_mon);
-
-		d_a = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(long) * x_mon,
-		NULL, &err);
-		checkError(err, "Creating buffer d_a");
-
-		// Write a vector into compute device memory
-		err = clEnqueueWriteBuffer(commands, d_a, CL_TRUE, 0,
-				sizeof(long) * x_mon, h_image_row, 0, NULL, NULL);
-		checkError(err, "Copying h_image_row to device at d_a");
-
-		unsigned char* h_imagepixel_row = (unsigned char*) calloc(x_mon * 3, sizeof(unsigned char));     // a vector
-
-		d_b = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(unsigned char) * x_mon * 3,
-		NULL, &err);
-		checkError(err, "Creating buffer d_b");
-
-		// Write a vector into compute device memory
-		err = clEnqueueWriteBuffer(commands, d_b, CL_TRUE, 0,
-				sizeof(unsigned char) * x_mon * 3, h_imagepixel_row, 0, NULL, NULL);
-		checkError(err, "Copying h_imagepixel_row to device at d_b");
+//		for (i = 0; i < x_mon * y_mon; ++i) {
+//			printf("%ld ", h_image[i]);
+//		}
+//		fflush(stdout);
 
 		//###############################################
+		//###############################################
 		//
-		// Set the arguments to our compute kernel
+		// End of loop to calculate image dot iterations
 		//
 		//###############################################
+		//###############################################
 
-		err = clSetKernelArg(ko_calculate_colorrow, 0,
-				sizeof(long), &x_mon);
-		err |= clSetKernelArg(ko_calculate_colorrow, 1,
-				sizeof(long), &itr);
-		err |= clSetKernelArg(ko_calculate_colorrow, 2,
-				sizeof(cl_mem), &d_a);
-		err |= clSetKernelArg(ko_calculate_colorrow, 3,
-				sizeof(cl_mem), &d_b);
-		checkError(err, "Setting kernel arguments");
+		//###############################################
+		//###############################################
+		//
+		// Beginn color calculation
+		//
+		//###############################################
+		//###############################################
 
-		/*__kernel void calculate_colorrow(const long width, long itr, long * imagerowvalues,
-		unsigned char * imagerow)*/
+		for (int row = 0; row < y_mon; ++row) {
+			//Get memory for row
+			long* h_image_row = (long*) calloc(x_mon, sizeof(long)); // a vector
+			memcpy(h_image_row, h_image + row * x_mon, sizeof(long) * x_mon);
 
-		// Execute the kernel over the entire range of our 1d input data set
-		// letting the OpenCL runtime choose the work-group size
-		global = x_mon;
-		err = clEnqueueNDRangeKernel(commands,
-				ko_calculate_colorrow, 1, NULL, &global, NULL, 0,
-				NULL, NULL);
-		checkError(err, "Enqueueing kernel");
+			d_a = clCreateBuffer(context, CL_MEM_READ_ONLY,
+					sizeof(long) * x_mon,
+					NULL, &err);
+			checkError(err, "Creating buffer d_a");
 
-		// Wait for the commands to complete
-		err = clFinish(commands);
-		checkError(err, "Waiting for kernel to finish");
+			// Write a vector into compute device memory
+			err = clEnqueueWriteBuffer(commands, d_a, CL_TRUE, 0,
+					sizeof(long) * x_mon, h_image_row, 0, NULL, NULL);
+			checkError(err, "Copying h_image_row to device at d_a");
 
-		// Read back the results from the compute device
-		err = clEnqueueReadBuffer(commands, d_b, CL_TRUE, 0,
-				sizeof(unsigned char) * x_mon * 3, h_imagepixel_row, 0, NULL, NULL);
-		if (err != CL_SUCCESS) {
-			printf("Error: Failed to read output array!\n%s\n", err_code(err));
-			exit(1);
+			unsigned char* h_imagepixel_row = (unsigned char*) calloc(x_mon * 3,
+					sizeof(unsigned char));     // a vector
+
+			d_b = clCreateBuffer(context, CL_MEM_READ_WRITE,
+					sizeof(unsigned char) * x_mon * 3,
+					NULL, &err);
+			checkError(err, "Creating buffer d_b");
+
+			// Write a vector into compute device memory
+			err = clEnqueueWriteBuffer(commands, d_b, CL_TRUE, 0,
+					sizeof(unsigned char) * x_mon * 3, h_imagepixel_row, 0,
+					NULL, NULL);
+			checkError(err, "Copying h_imagepixel_row to device at d_b");
+
+			//###############################################
+			//
+			// Set the arguments to our compute kernel
+			//
+			//###############################################
+
+			err = clSetKernelArg(ko_calculate_colorrow, 0, sizeof(long),
+					&x_mon);
+			err |= clSetKernelArg(ko_calculate_colorrow, 1, sizeof(long), &itr);
+			err |= clSetKernelArg(ko_calculate_colorrow, 2, sizeof(cl_mem),
+					&d_a);
+			err |= clSetKernelArg(ko_calculate_colorrow, 3, sizeof(cl_mem),
+					&d_b);
+			checkError(err, "Setting kernel arguments");
+
+			/*__kernel void calculate_colorrow(const long width, long itr, long * imagerowvalues,
+			 unsigned char * imagerow)*/
+
+			// Execute the kernel over the entire range of our 1d input data set
+			// letting the OpenCL runtime choose the work-group size
+			global = x_mon;
+			err = clEnqueueNDRangeKernel(commands, ko_calculate_colorrow, 1,
+			NULL, &global, NULL, 0,
+			NULL, NULL);
+			checkError(err, "Enqueueing kernel");
+
+			// Wait for the commands to complete
+			err = clFinish(commands);
+			checkError(err, "Waiting for kernel to finish");
+
+			// Read back the results from the compute device
+			err = clEnqueueReadBuffer(commands, d_b, CL_TRUE, 0,
+					sizeof(unsigned char) * x_mon * 3, h_imagepixel_row, 0,
+					NULL, NULL);
+			if (err != CL_SUCCESS) {
+				printf("Error: Failed to read output array!\n%s\n",
+						err_code(err));
+				exit(1);
+			}
+
+			memcpy(h_image_pixel + row * x_mon * 3, h_imagepixel_row,
+					sizeof(unsigned char) * x_mon * 3);
+
+			free(h_image_row);
+			free(h_imagepixel_row);
 		}
 
-		memcpy(h_image_pixel + row * x_mon * 3, h_imagepixel_row, sizeof(unsigned char) * x_mon * 3);
+		if (number_images == 0) {
+			zoom_dot = find_dot_to_zoom(x_ebene_min, x_ebene_max, y_ebene_min,
+					y_ebene_max, h_image, y_mon, x_mon, itr);
+		}
 
-		free(h_image_row);
-		free(h_imagepixel_row);
-	}
+		reduce_plane_section_focus_dot(&x_ebene_min, &x_ebene_max, &y_ebene_min,
+				&y_ebene_max, reduction, zoom_dot);
+
+
+		// save the image
+		char filename[50];
+		sprintf(filename, "img-%d.bmp", number_images);
+
+		safe_image_to_bmp(x_mon, y_mon, h_image_pixel, filename);
+
+		free(h_image);
+		free(h_image_pixel);
+
+		number_images++;
+		itr = (long) (itr + itr * reduction / 100);
+		printf("%d\n", number_images);
+		fflush(stdout);
+	} while (number_images < (fps * video_duration));
 
 	//###############################################
 	//
@@ -374,16 +421,6 @@ int main(void) {
 	clReleaseKernel(ko_calculate_imagerowdots_iterations);
 	clReleaseCommandQueue(commands);
 	clReleaseContext(context);
-
-	free(h_image);
-
-	// save the image
-	char filename[50];
-	sprintf(filename, "img-%d.bmp", 0);
-
-	safe_image_to_bmp(x_mon, y_mon, h_image_pixel, filename);
-
-	free(h_image_pixel);
 
 	return 0;
 }

@@ -176,6 +176,15 @@ int main(void) {
 			"calculate_imagerowdots_iterations", &err);
 	checkError(err, "Creating kernel");
 
+
+	//###############################################
+	//###############################################
+	//
+	// Loop to calculate image dot iterations
+	//
+	//###############################################
+	//###############################################
+
 	float y_value = y_ebene_max;
 	float delta_y = delta(y_ebene_min, y_ebene_max, y_mon);
 

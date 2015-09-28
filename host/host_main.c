@@ -265,6 +265,7 @@ int main(void) {
 	for (i = 0; i < x_mon * y_mon; ++i) {
 		printf("%ld ", h_image[i]);
 	}
+	fflush(stdout);
 
 	//###############################################
 	//

@@ -253,12 +253,6 @@ int main(void) {
 			exit(1);
 		}
 
-		printf("\n\n%d\n",row);
-		for (i = 0; i < x_mon; ++i) {
-			printf("%ld ", h_image_row[i]);
-		}
-
-
 		//reduce y
 		y_value -= delta_y;
 
@@ -266,6 +260,10 @@ int main(void) {
 		memcpy(h_image + row * x_mon, h_image_row, sizeof(long) * x_mon);
 
 		free(h_image_row);
+	}
+
+	for (i = 0; i < x_mon * y_mon; ++i) {
+		printf("%ld ", h_image[i]);
 	}
 
 	//###############################################

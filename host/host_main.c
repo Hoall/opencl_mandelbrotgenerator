@@ -178,7 +178,7 @@ int main(void) {
 
 	//###############################################
 	//
-	// Create buffer
+	// Create and write buffer
 	//
 	//###############################################
 
@@ -191,9 +191,14 @@ int main(void) {
 			h_image_row, 0, NULL, NULL);
 	checkError(err, "Copying h_a to device at d_a");
 
+	//###############################################
+	//
 	// Set the arguments to our compute kernel
-	err = clSetKernelArg(ko_calculate_imagerowdots_iterations, 0,
-			sizeof(float), &x_ebene_min);
+	//
+	//###############################################
+
+	err = clSetKernelArg(ko_calculate_imagerowdots_iterations, 0, sizeof(float),
+			&x_ebene_min);
 	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 1,
 			sizeof(float), &x_ebene_max);
 	err |= clSetKernelArg(ko_calculate_imagerowdots_iterations, 2,
@@ -220,7 +225,7 @@ int main(void) {
 			NULL, NULL);
 	checkError(err, "Enqueueing kernel");
 
-	// Wait for the commands to complete before stopping the timer
+	// Wait for the commands to complete
 	err = clFinish(commands);
 	checkError(err, "Waiting for kernel to finish");
 
@@ -236,7 +241,12 @@ int main(void) {
 		printf("%d %ld\n", i, h_image_row[i]);
 	}
 
+	//###############################################
+	//
 	// cleanup then shutdown
+	//
+	//###############################################
+
 	clReleaseMemObject(d_a);
 	clReleaseProgram(program);
 	clReleaseKernel(ko_calculate_imagerowdots_iterations);

@@ -180,6 +180,10 @@ int main(void) {
 			"calculate_imagerowdots_iterations", &err);
 	checkError(err, "Creating kernel");
 
+	// Create the compute kernel from the program
+	ko_calculate_colorrow = clCreateKernel(program,
+			"calculate_colorrow", &err);
+	checkError(err, "Creating kernel");
 
 	//###############################################
 	//###############################################
@@ -287,12 +291,6 @@ int main(void) {
 	//
 	//###############################################
 	//###############################################
-
-
-	// Create the compute kernel from the program
-	ko_calculate_colorrow = clCreateKernel(program,
-			"calculate_colorrow", &err);
-	checkError(err, "Creating kernel");
 
 	for (int row = 0; row < y_mon; ++row) {
 		//Get memory for row

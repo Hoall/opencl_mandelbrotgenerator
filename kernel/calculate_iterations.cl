@@ -112,6 +112,8 @@ long iterate_dot(const my_complex_t c, const float abort_value,
 __kernel void calculate_imagerowdots_iterations(const float x_min, const float x_max,
 		const float y_value, const long x_mon, const float abort_value, const long itr,
 		__global long * imagerow);
+__kernel void calculate_colorrow(const long width, long itr, __global long * imagerowvalues,
+		__global unsigned char * imagerow);
 
 /**
  *  Calculate z(n+1) = z(n)^2 - c
@@ -206,3 +208,41 @@ __kernel void calculate_imagerowdots_iterations(const float x_min, const float x
 	imagerow[j] = iterate_dot(c, abort_value, itr);
 
 }
+/**
+ * Calculates the color from the iteration values.
+ *
+ * @param imagevalues The calculated iteration values.
+ * @param image The final imagerow.
+ * @param width The width.
+ */
+__kernel void calculate_colorrow(const long width, long itr, __global long * imagerowvalues,
+		__global unsigned char * imagerow) {
+
+	float color_steps = (float) 255.0 / (float) itr;
+	float red = color_steps;
+	float green = color_steps;
+	float blue = color_steps;
+
+	int i = get_global_id(0);
+	long value = imagerowvalues[i];
+	value = itr - value;
+
+	float myred = (float) value * red / 1.1;
+	float mygreen = (float) value * green / 1.05;
+	float myblue = (float) value * blue;
+
+	if (myred > 255.0) {
+		myred = 255;
+	}
+	if (mygreen > 255.0) {
+		mygreen = 255;
+	}
+	if (myblue > 255.0) {
+		myblue = 255;
+	}
+
+	imagerow[i * 3 - 3] = (unsigned char) myred;
+	imagerow[i * 3 - 2] = (unsigned char) mygreen;
+	imagerow[i * 3 - 1] = (unsigned char) myblue;
+}
+

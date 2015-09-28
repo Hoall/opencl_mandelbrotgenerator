@@ -37,8 +37,10 @@ int main(void) {
 	cl_command_queue commands;      // compute command queue
 	cl_program program;       // compute program
 	cl_kernel ko_calculate_imagerowdots_iterations;       // compute kernel
+	cl_kernel ko_calculate_colorrow;       // compute kernel
 
 	cl_mem d_a;                    // device memory used for the input  a vector
+	cl_mem d_b;                    // device memory
 
 	int i;
 
@@ -66,6 +68,7 @@ int main(void) {
 
 	//Get memory for image
 	long* h_image = (long*) calloc(x_mon * y_mon, sizeof(long));
+	unsigned char* h_image_pixel = (unsigned char*) calloc(x_mon * y_mon * 3, sizeof(unsigned char));
 
 	//###############################################
 	//
@@ -268,6 +271,99 @@ int main(void) {
 	fflush(stdout);
 
 	//###############################################
+	//###############################################
+	//
+	// End of loop to calculate image dot iterations
+	//
+	//###############################################
+	//###############################################
+
+
+	//###############################################
+	//###############################################
+	//
+	// Beginn color calculation
+	//
+	//###############################################
+	//###############################################
+
+
+	// Create the compute kernel from the program
+	ko_calculate_colorrow = clCreateKernel(program,
+			"calculate_colorrow", &err);
+	checkError(err, "Creating kernel");
+
+	for (int row = 0; row < y_mon; ++row) {
+		//Get memory for row
+		long* h_image_row = (long*) calloc(x_mon, sizeof(long));     // a vector
+		memcpy(h_image_row, h_image + row * x_mon, sizeof(long) * x_mon);
+
+		d_a = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(long) * x_mon,
+		NULL, &err);
+		checkError(err, "Creating buffer d_a");
+
+		// Write a vector into compute device memory
+		err = clEnqueueWriteBuffer(commands, d_a, CL_TRUE, 0,
+				sizeof(long) * x_mon, h_image_row, 0, NULL, NULL);
+		checkError(err, "Copying h_image_row to device at d_a");
+
+		unsigned char* h_imagepixel_row = (unsigned char*) calloc(x_mon * 3, sizeof(unsigned char));     // a vector
+
+		d_b = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(unsigned char) * x_mon * 3,
+		NULL, &err);
+		checkError(err, "Creating buffer d_b");
+
+		// Write a vector into compute device memory
+		err = clEnqueueWriteBuffer(commands, d_b, CL_TRUE, 0,
+				sizeof(unsigned char) * x_mon * 3, h_imagepixel_row, 0, NULL, NULL);
+		checkError(err, "Copying h_imagepixel_row to device at d_b");
+
+		//###############################################
+		//
+		// Set the arguments to our compute kernel
+		//
+		//###############################################
+
+		err = clSetKernelArg(ko_calculate_colorrow, 0,
+				sizeof(long), &x_mon);
+		err |= clSetKernelArg(ko_calculate_colorrow, 1,
+				sizeof(long), &itr);
+		err |= clSetKernelArg(ko_calculate_colorrow, 2,
+				sizeof(cl_mem), &d_a);
+		err |= clSetKernelArg(ko_calculate_colorrow, 3,
+				sizeof(cl_mem), &d_b);
+		checkError(err, "Setting kernel arguments");
+
+		/*__kernel void calculate_colorrow(const long width, long itr, long * imagerowvalues,
+		unsigned char * imagerow)*/
+
+		// Execute the kernel over the entire range of our 1d input data set
+		// letting the OpenCL runtime choose the work-group size
+		global = x_mon;
+		err = clEnqueueNDRangeKernel(commands,
+				ko_calculate_colorrow, 1, NULL, &global, NULL, 0,
+				NULL, NULL);
+		checkError(err, "Enqueueing kernel");
+
+		// Wait for the commands to complete
+		err = clFinish(commands);
+		checkError(err, "Waiting for kernel to finish");
+
+		// Read back the results from the compute device
+		err = clEnqueueReadBuffer(commands, d_b, CL_TRUE, 0,
+				sizeof(unsigned char) * x_mon * 3, h_imagepixel_row, 0, NULL, NULL);
+		if (err != CL_SUCCESS) {
+			printf("Error: Failed to read output array!\n%s\n", err_code(err));
+			exit(1);
+		}
+
+		memcpy(h_image_pixel + row * x_mon * 3, h_imagepixel_row, sizeof(unsigned char) * x_mon * 3);
+
+		free(h_image_row);
+		free(h_imagepixel_row);
+	}
+
+	//###############################################
 	//
 	// cleanup then shutdown
 	//
@@ -280,6 +376,8 @@ int main(void) {
 	clReleaseContext(context);
 
 	free(h_image);
+
+	free(h_image_pixel);
 
 	return 0;
 }
